@@ -1,0 +1,30 @@
+################################################################################
+################################ GLOBAL STUFF ##################################
+################################################################################
+# Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: project-environment
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    project: ${CI_PROJECT_NAME}
+type: Opaque
+data:
+  PROJECT_CONFIG: "${PROJECT_CONFIG}"
+  SHARED_PROJECT_CONFIG: "${SHARED_PROJECT_CONFIG}"
+  PROVIDER_CREDENTIALS: "${PROVIDER_CREDENTIALS}"
+---
+# Persistent volume for NZML files storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: default-local-volume-claim
+  namespace: ${K8S_NAMESPACE}
+spec:
+  storageClassName: standard
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

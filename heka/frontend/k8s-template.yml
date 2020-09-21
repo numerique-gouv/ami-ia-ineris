@@ -1,0 +1,165 @@
+################################################################################
+##################################### frontend #####################################
+################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: frontend
+    project: ${PROJECT_NAME}
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      micro-service: frontend
+  template:
+    metadata:
+      labels:
+        micro-service: frontend
+        project: ${PROJECT_NAME}
+    spec:
+      terminationGracePeriodSeconds: 3600
+      volumes:
+      - name: heka-pv-storage
+        persistentVolumeClaim:
+          claimName: default-local-volume-claim
+      containers:
+      - name: frontend
+        image: ${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_REF_NAME}
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 800m
+            memory: 2000Mi
+          limits:
+            cpu: 800m
+            memory: 2000Mi
+        env:
+        - name: FOR_GODS_SAKE_PLEASE_REDEPLOY
+          value: ${CI_BUILD_REF}-${CI_PIPELINE_ID}-${CI_JOB_ID}
+        - name: PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROJECT_CONFIG
+        - name: SHARED_PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: SHARED_PROJECT_CONFIG
+        - name: PROVIDER_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROVIDER_CREDENTIALS
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: heka-pv-storage
+          mountPath: /heka/storage
+          readOnly: false
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - "bash"
+              - "-c"
+              - |
+                echo "$PROVIDER_CREDENTIALS" | base64 -d > /etc/provider_credentials.json
+                gcloud auth activate-service-account --key-file=/etc/provider_credentials.json
+
+                mkdir -p /heka/storage
+
+                gsutil \
+                -m  \
+                -o 'GSUtil:parallel_thread_count=2' \
+                -o 'GSUtil:parallel_process_count:2' \
+                rsync -d -r \
+                gs://heka-$(echo "$PROVIDER_CREDENTIALS" | base64 -d | jq -rc '.project_id' | sed 's/heka-asterix-//')-ineris-storage \
+                /heka/storage \
+                >/dev/null 2>/dev/null &
+
+                rm /etc/provider_credentials.json
+
+                # Disown in order to detach asynchronously
+                disown
+                disown -a
+                exit 0
+        livenessProbe:
+          httpGet:
+            path: /${PROJECT_NAME}/
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesLivenessProbe
+          initialDelaySeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /${PROJECT_NAME}/
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesReadinessProbe
+          initialDelaySeconds: 30
+      imagePullSecrets:
+      - name: sia-docker-registry-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: frontend
+    project: ${PROJECT_NAME}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http
+  selector:
+    micro-service: frontend
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: frontend
+    project: ${PROJECT_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.allow-http: "${NOT_PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/rewrite-target: /${PROJECT_NAME}/$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "${PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "${NOT_PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/auth-method: POST
+    nginx.ingress.kubernetes.io/auth-url: ${PROJECT_PROTOCOl}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/api/a12n/access/verify
+    nginx.ingress.kubernetes.io/auth-signin: ${PROJECT_PROTOCOl}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/signin/?redirect=$${skip}scheme://$${skip}http_host$${skip}escaped_request_uri
+    nginx.ingress.kubernetes.io/proxy-body-size: 400m
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Script-Name /${PROJECT_NAME};
+spec:
+  tls:
+  - hosts:
+    - ${PROJECT_INGRESS_HOSTNAME}
+    secretName: ingress-cert
+  rules:
+  - host: ${PROJECT_INGRESS_HOSTNAME}
+    http:
+      paths:
+      - path: /${PROJECT_NAME}(/|$)(.*)
+        backend:
+          serviceName: frontend
+          servicePort: http

@@ -1,0 +1,73 @@
+.frontend:
+  variables:
+    SERVICE: frontend
+  only:
+    changes:
+    - heka/frontend/**/*
+build:frontend:
+  extends:
+  - .all_stages
+  - .build
+  - .frontend
+
+test:frontend:
+  needs:
+  - build:frontend
+  extends:
+  - .all_stages
+  - .test
+  - .frontend
+  script:
+    # Tests go here
+  - exit 0
+
+push:frontend:
+  needs:
+  - test:frontend
+  extends:
+  - .all_stages
+  - .push
+  - .frontend
+
+deploy:frontend:dev:
+  needs:
+  - push:frontend
+  - deploy:project:dev
+  extends:
+  - .all_stages
+  - .deploy
+  - .frontend
+  - .dev
+
+deploy:frontend:prod:
+  needs:
+  - push:frontend
+  - deploy:project:prod
+  extends:
+  - .all_stages
+  - .deploy
+  - .frontend
+  - .prod
+
+
+deploy_only:frontend:dev:
+  needs:
+  - deploy:project:dev
+  extends:
+  - .deploy_only
+  - .deploy
+  - .frontend
+  - .dev
+deploy_only:frontend:prod:
+  needs:
+  - deploy:project:prod
+  extends:
+  - .deploy_only
+  - .deploy
+  - .frontend
+  - .prod
+cleanup:frontend:
+  extends:
+  - .all_stages
+  - .cleanup
+  - .frontend

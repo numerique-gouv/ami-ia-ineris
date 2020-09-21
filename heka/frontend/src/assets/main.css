@@ -1,0 +1,27 @@
+.sidebar-brand img {
+    max-width: 100%;
+}
+
+svg tspan.line[dy="1.3em"] {
+    display: none;
+}
+
+.card.border-left-primary {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.card.border-left-primary .text-primary {
+    color: #36b9cc !important;
+}
+
+@media (max-width: 1498px) {
+    .card-body .audience {
+        float: none !important;
+    }
+}
+
+#under-construction-icon {
+    font-size: 70px;
+    text-align: center;
+    padding-top: 100px;
+}

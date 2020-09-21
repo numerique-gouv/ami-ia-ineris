@@ -1,0 +1,260 @@
+################################################################################
+################################ LAUNCHER ######################################
+################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: launcher
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      micro-service: launcher
+  template:
+    metadata:
+      labels:
+        micro-service: launcher
+        project: ${CI_PROJECT_NAME}
+    spec:
+      serviceAccountName: launcher
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+      - name: sia-docker-registry-credentials
+      containers:
+      - name: launcher
+        image: $CI_REGISTRY/heka/core/launcher:2
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 50m
+            memory: 125Mi
+          limits:
+            cpu: 250m
+            memory: 250Mi
+        env:
+        - name: FOR_GODS_SAKE_PLEASE_REDEPLOY
+          value: ${CI_BUILD_REF}-${CI_PIPELINE_ID}-${CI_JOB_ID}
+        - name: PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROJECT_CONFIG
+        - name: SHARED_PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: SHARED_PROJECT_CONFIG
+        - name: PROVIDER_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROVIDER_CREDENTIALS
+        - name: PROJECT_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        ports:
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesLivenessProbe
+          initialDelaySeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesReadinessProbe
+          initialDelaySeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: launcher
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http
+  selector:
+    micro-service: launcher
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: launcher
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+spec:
+  endpoints:
+  - honorLabels: true
+    port: http
+  namespaceSelector:
+    matchNames:
+    - ${K8S_NAMESPACE}
+  selector:
+    matchLabels:
+      micro-service: launcher
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: launcher
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.allow-http: "${NOT_PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/x-forwarded-prefix: /${PROJECT_NAME}/api/launcher
+    nginx.ingress.kubernetes.io/proxy-body-size: 400m
+    nginx.ingress.kubernetes.io/ssl-redirect: "${PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+  - hosts:
+    - ${PROJECT_INGRESS_HOSTNAME}
+    secretName: ingress-cert
+  rules:
+  - host: ${PROJECT_INGRESS_HOSTNAME}
+    http:
+      paths:
+      - path: /${PROJECT_NAME}/api/launcher(/|$)(.*)
+        backend:
+          serviceName: launcher
+          servicePort: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: launcher
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-pod
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - get
+  - list
+  resources:
+  - pods
+  - pods/status
+- apiGroups:
+  - batch
+  verbs:
+  - create
+  - get
+  - delete
+  - list
+  resources:
+  - jobs
+  - jobs/status
+- apiGroups:
+  - ""
+  verbs:
+  - get
+  - create
+  resources:
+  - pods/attach
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: launcher-job-pod
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+subjects:
+- kind: ServiceAccount
+  name: launcher
+roleRef:
+  kind: Role
+  name: job-pod
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logger-sidecar
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: logger-sidecar-pod
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+rules:
+- apiGroups:
+  - ""
+  verbs:
+  - get
+  resources:
+  - pods
+  - pods/status
+  - pods/log
+- apiGroups:
+  - batch
+  verbs:
+  - get
+  resources:
+  - jobs/status
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: logger-sidecar-logger-sidecar-pod
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: launcher
+    project: ${CI_PROJECT_NAME}
+subjects:
+- kind: ServiceAccount
+  name: logger-sidecar
+roleRef:
+  kind: Role
+  name: logger-sidecar-pod
+  apiGroup: rbac.authorization.k8s.io

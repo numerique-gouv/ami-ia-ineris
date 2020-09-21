@@ -1,0 +1,41 @@
+###############################################################################
+###################################  TASKS  ###################################
+###############################################################################
+
+###################################  BUILD  ###################################
+
+build:tasks:
+  stage: 🧰 Build
+  variables:
+    SERVICE: tasks
+  image: $CI_REGISTRY/heka/tools/buildx:master
+  services:
+  - docker:19-dind
+  before_script:
+  - >
+    echo $CI_REGISTRY_PASSWORD |
+    docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  - docker buildx create --driver docker-container --use
+  script:
+  - |
+    for FILE in $(find heka/tasks/ -name "Dockerfile" -type f); do \
+      echo "~> Treating Dockerfile ${FILE} <~"
+      DIRECTORY_PATH=$(dirname $FILE)
+      IMAGE_PATH="tasks/$(basename $DIRECTORY_PATH)"
+      docker buildx build \
+      --build-arg CI_REGISTRY="$CI_REGISTRY" \
+      --build-arg CI_REGISTRY_IMAGE="$CI_REGISTRY_IMAGE" \
+      --build-arg TAG="$CI_COMMIT_REF_SLUG" \
+      --cache-from=type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_PATH:$CI_COMMIT_REF_SLUG-cache \
+      --cache-to=type=registry,ref=$CI_REGISTRY_IMAGE/$IMAGE_PATH:$CI_COMMIT_REF_SLUG-cache,mode=max \
+      --tag $CI_REGISTRY_IMAGE/$IMAGE_PATH:$CI_COMMIT_REF_SLUG \
+      --push \
+      $DIRECTORY_PATH
+    done
+  tags:
+  - ci-build
+  only:
+    changes:
+    - heka/tasks/**/*
+  extends:
+  - .all_stages

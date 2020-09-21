@@ -1,0 +1,148 @@
+###############################################################################
+##############################  CUSTOM ENDPOINTS  #############################
+###############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: c13s
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: c13s
+    project: ${CI_PROJECT_NAME}
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      micro-service: c13s
+  template:
+    metadata:
+      labels:
+        micro-service: c13s
+        project: ${CI_PROJECT_NAME}
+    spec:
+      terminationGracePeriodSeconds: 3600
+      containers:
+      - name: c13s
+        image: ${CI_REGISTRY_IMAGE}/c13s:${CI_COMMIT_REF_SLUG}
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 50m
+            memory: 125Mi
+          limits:
+            cpu: 250m
+            memory: 250Mi
+        env:
+        - name: FOR_GODS_SAKE_PLEASE_REDEPLOY
+          value: ${CI_BUILD_REF}-${CI_PIPELINE_ID}-${CI_JOB_ID}
+        - name: PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROJECT_CONFIG
+        - name: SHARED_PROJECT_CONFIG
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: SHARED_PROJECT_CONFIG
+        - name: PROVIDER_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: project-environment
+              key: PROVIDER_CREDENTIALS
+        - name: GUNICORN_TIMEOUT
+          value: "300"
+        ports:
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesLivenessProbe
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Host
+              value: KubernetesReadinessProbe
+          initialDelaySeconds: 5
+      imagePullSecrets:
+      - name: sia-docker-registry-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: c13s
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: c13s
+    project: ${CI_PROJECT_NAME}
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http
+  selector:
+    micro-service: c13s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: c13s
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: c13s
+    project: ${CI_PROJECT_NAME}
+spec:
+  endpoints:
+  - honorLabels: true
+    port: http
+  namespaceSelector:
+    matchNames:
+    - ${K8S_NAMESPACE}
+  selector:
+    matchLabels:
+      micro-service: c13s
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: c13s
+  namespace: ${K8S_NAMESPACE}
+  labels:
+    micro-service: c13s
+    project: ${CI_PROJECT_NAME}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.allow-http: "${NOT_PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/x-forwarded-prefix: /${PROJECT_NAME}/api/c13s
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/ssl-redirect: "${PROJECT_IS_HTTPS}"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  tls:
+  - hosts:
+    - ${PROJECT_INGRESS_HOSTNAME}
+    secretName: ingress-cert
+  rules:
+  - host: ${PROJECT_INGRESS_HOSTNAME}
+    http:
+      paths:
+      - path: /${PROJECT_NAME}/api/c13s(/|$)(.*)
+        backend:
+          serviceName: c13s
+          servicePort: http

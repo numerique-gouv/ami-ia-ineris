@@ -1,0 +1,83 @@
+import dash
+import dash_html_components as html
+import dash_core_components as dcc
+from dash.dependencies import Input, Output
+import yaml
+import os
+<<<<<<< HEAD
+import plotly.io as pio
+import instance
+=======
+import flask
+>>>>>>> 3c169a44bc4393bc99a5192348145f6be2c1d557
+
+config = yaml.safe_load(os.getenv("PROJECT_CONFIG", "---"))
+
+try:
+    base = "/{}/".format(config["project"]["name"])
+except KeyError:
+    base = "/"
+
+<<<<<<< HEAD
+pio.templates.default = "plotly_white"
+=======
+server = flask.Flask(__name__)
+
+app = dash.Dash(
+    __name__,
+    requests_pathname_prefix=base,
+    routes_pathname_prefix=base,
+    include_assets_files=True,
+    server=server
+)
+>>>>>>> 3c169a44bc4393bc99a5192348145f6be2c1d557
+
+instance.app.title = "INERIS Dashboard"
+
+# HTML skeleton
+full_path = os.path.realpath(__file__)
+directory = os.path.dirname(full_path)
+file = open(directory + "/index_string.html", "r")
+instance.app.index_string = file.read()
+
+instance.app.config.suppress_callback_exceptions = True
+
+# Default layout
+instance.app.layout = html.Div(
+    [dcc.Location(id="url", refresh=False), html.Div(id="page-content")]
+)
+
+# Pages
+from Besoin1.callback import register_callbacks as besoin1_callbacks
+from Besoin1.layout import layout as besoin1_layout
+
+from Besoin3.callback import register_callbacks as besoin3_callbacks
+from Besoin3.layout import layout as besoin3_layout
+
+
+# Callbacks
+besoin1_callbacks(instance.app)
+besoin3_callbacks(instance.app)
+
+
+# Routing
+@instance.app.callback(
+    dash.dependencies.Output("page-content", "children"),
+    [dash.dependencies.Input("url", "pathname")],
+)
+def display_page(pathname):
+    if pathname == f"{base}besoin1":
+        return besoin1_layout
+    elif pathname == f"{base}besoin3":
+        return besoin3_layout
+    else:
+        return besoin3_layout
+
+
+if __name__ == "__main__":
+<<<<<<< HEAD
+    is_debug = config.get("project", {}).get("log-level") == "DEBUG"
+    instance.app.run_server(debug=is_debug, host="0.0.0.0", port=80)
+=======
+    app.run_server(debug = True, host = '0.0.0.0', port = 80)
+>>>>>>> 3c169a44bc4393bc99a5192348145f6be2c1d557

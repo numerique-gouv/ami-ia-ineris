@@ -1,0 +1,34 @@
+###############################################################################
+##################################  LAUNCHER  #################################
+###############################################################################
+
+.launcher:
+  variables:
+    SERVICE: launcher
+  only:
+    changes:
+    - heka/launcher/k8s-template.yml
+
+###################################  DEPLOY  ##################################
+
+deploy:launcher:dev:
+  needs:
+  - deploy:project:dev
+  extends:
+  - .deploy_only
+  - .deploy
+  - .dev
+  - .launcher
+  only:
+    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+
+deploy:launcher:prod:
+  needs:
+  - deploy:project:prod
+  extends:
+  - .deploy_only
+  - .deploy
+  - .prod
+  - .launcher
+  only:
+    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"

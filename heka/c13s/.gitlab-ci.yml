@@ -1,0 +1,89 @@
+###############################################################################
+####################################  C13S  ###################################
+###############################################################################
+
+.c13s:
+  variables:
+    SERVICE: c13s
+  only:
+    changes:
+    - heka/c13s/**/*
+
+###################################  BUILD  ###################################
+
+build:c13s:
+  extends:
+  - .all_stages
+  - .build
+  - .c13s
+
+####################################  TEST  ###################################
+
+test:c13s:
+  needs:
+  - build:c13s
+  extends:
+  - .all_stages
+  - .test
+  - .c13s
+  script:
+    # Tests go here
+  - exit 0
+
+####################################  PUSH  ###################################
+
+push:c13s:
+  needs:
+  - test:c13s
+  extends:
+  - .all_stages
+  - .push
+  - .c13s
+
+###################################  DEPLOY  ##################################
+
+deploy:c13s:dev:
+  needs:
+  - push:c13s
+  - deploy:project:dev
+  extends:
+  - .all_stages
+  - .deploy
+  - .dev
+  - .c13s
+
+deploy:c13s:prod:
+  needs:
+  - push:c13s
+  - deploy:project:prod
+  extends:
+  - .all_stages
+  - .deploy
+  - .prod
+  - .c13s
+
+deploy_only:c13s:dev:
+  needs:
+  - deploy:project:dev
+  extends:
+  - .deploy_only
+  - .deploy
+  - .dev
+  - .c13s
+
+deploy_only:c13s:prod:
+  needs:
+  - deploy:project:prod
+  extends:
+  - .deploy_only
+  - .deploy
+  - .prod
+  - .c13s
+
+##################################  CLEANUP  #################################
+
+cleanup:c13s:
+  extends:
+  - .all_stages
+  - .cleanup
+  - .c13s

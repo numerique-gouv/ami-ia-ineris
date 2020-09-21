@@ -1,0 +1,32 @@
+###############################################################################
+###################################  PROJECT  #################################
+###############################################################################
+
+deploy:project:dev:
+  stage: 🚢 Deploy Common
+  needs: []
+  extends:
+  - .deploy
+  - .dev
+  only:
+    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+
+deploy:project:prod:
+  stage: 🚢 Deploy Common
+  needs: []
+  extends:
+  - .deploy
+  - .prod
+  only:
+    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+
+##################################  INCLUDES  #################################
+
+include:
+- local: /heka/a12n/.gitlab-ci.yml
+- local: /heka/c13s/.gitlab-ci.yml
+- local: /heka/launcher/.gitlab-ci.yml
+- local: /heka/frontend/.gitlab-ci.yml
+- local: /heka/admin/.gitlab-ci.yml
+- local: /heka/scheduler/.gitlab-ci.yml
+- local: /heka/tasks/.gitlab-ci.yml
