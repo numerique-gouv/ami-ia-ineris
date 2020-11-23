@@ -58,10 +58,14 @@ from Besoin1.layout import layout as besoin1_layout
 from Besoin3.callback import register_callbacks as besoin3_callbacks
 from Besoin3.layout import layout as besoin3_layout
 
+from Bdd.callback import register_callbacks as bdd_callbacks
+from Bdd.layout import layout as bdd_layout
+
 
 # Callbacks
 besoin1_callbacks(app)
 besoin3_callbacks(app)
+bdd_callbacks(app)
 
 
 # Routing
@@ -74,6 +78,8 @@ def display_page(pathname):
         return besoin1_layout
     elif pathname == f"{base}besoin3":
         return besoin3_layout
+    elif pathname == f"{base}bdd":
+        return bdd_layout
     else:
         return besoin1_layout
 

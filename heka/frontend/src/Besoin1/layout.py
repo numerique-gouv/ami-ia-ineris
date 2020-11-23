@@ -9,11 +9,11 @@ import dash_table as dt
 
 
 blobs = list_blobs()
-names = [i['blob_name'].split('/')[-2]+'/'+i['blob_name'].split('/')[-1] for i in blobs if i['blob_name'][-4:] == 'mzML']
+names = [i['blob_name'].split('/')[-2]+'/'+i['blob_name'].split('/')[-1] for i in blobs if ((i['blob_name'][-4:] == 'mzML') and ("_Med" not in i['blob_name'].split('/')[-1]) and ("Pesticides" not in i['blob_name'].split('/')[-1]) and ("mix_perfluores" not in i['blob_name'].split('/')[-1]) and ("bisphenols" not in i['blob_name'].split('/')[-1]))]
 
 
-df = get_df_full_query("""SELECT * FROM public.ineris_bdd""")
-Meds = list(df[['Name', 'Formula']].drop_duplicates()['Name'].reset_index(drop=True).values)
+df = get_df_full_query("""SELECT molecule_name FROM public.molecules GROUP BY 1 ORDER BY 1;""")
+Meds = list(df['molecule_name'].values)
 
 
 
@@ -51,13 +51,40 @@ layout = html.Div(
         html.Hr(),
 
         html.H1('Choosing the molecule to look for'),
-        html.Div([
-        dcc.Dropdown(
-            id='name-dropdown-Mol',
-            options=[{'label':name, 'value':name} for name in Meds]
-            # ,value = 'Acebutolol'
-            ),
-            ],style={'width': '49.25%', 'display': 'inline-block'}),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                    dcc.Dropdown(
+                    id='name-dropdown-Mol',
+                    options=[{'label':name, 'value':name} for name in Meds]
+                    ),                    
+                ],width=4),
+                dbc.Col(
+                    [
+                    dcc.Dropdown(
+                    id='name-dropdown-Source',
+                    options=[]
+                    ),                    
+                ],width=4),
+                dbc.Col(
+                    [
+                    dcc.Dropdown(
+                    id='name-dropdown-Species',
+                    options=[]
+                    ),                    
+                ],width=4),
+            ]
+        ),
+
+
+        # html.Div([
+        # dcc.Dropdown(
+        #     id='name-dropdown-Mol',
+        #     options=[{'label':name, 'value':name} for name in Meds]
+        #     # ,value = 'Acebutolol'
+        #     ),
+        #     ],style={'width': '49.25%', 'display': 'inline-block'}),
         dbc.Row(
             [
                 dbc.Col(
@@ -79,7 +106,7 @@ layout = html.Div(
                     html.Div(
                                 [
                                     dt.DataTable(id='datatable-peaks', 
-                                        columns = [{"id": 'Minute', "name": 'Minute'}, {"id": 'Peak value', "name": 'Peak value'}],
+                                        columns = [{"id": 'Minute', "name": 'Minute'}, {"id": 'Peak value', "name": 'Peak value'}, {"id": 'Detected mass', "name": 'Detected mass'}],
                                         style_data={'whiteSpace': 'pre-line'}, 
                                         style_cell={'textAlign': 'left'})
                                 ]
@@ -99,49 +126,49 @@ layout = html.Div(
             ],style={'width': '49.25%', 'display': 'inline-block'}
         ),
         html.Div([],style={'width': '50.75%', 'display': 'inline-block'}),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                    # cc.ChartCard("search-in-chromato", "Search on chromatogram"),
-                    cc.ChartCard("scan-spectrum", "Scan"),
-                ],width=8),
-                dbc.Col(
-                    [
-                    # cc.ChartCard("scan-spectrum", "Scan"),
-                ],width=4),
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                    cc.ChartCard("search-fragment-10", "Following fragmentation with 10eV"),
-                ],width=4),
-                dbc.Col(
-                    [
-                    cc.ChartCard("search-fragment-20", "Following fragmentation with 20eV"),
-                ],width=4),
-                dbc.Col(
-                    [
-                    cc.ChartCard("search-fragment-40", "Following fragmentation with 40eV"),
-                ],width=4),
-            ]
-        ),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(
+        #             [
+        #             # cc.ChartCard("search-in-chromato", "Search on chromatogram"),
+        #             cc.ChartCard("scan-spectrum", "Scan"),
+        #         ],width=8),
+        #         dbc.Col(
+        #             [
+        #             # cc.ChartCard("scan-spectrum", "Scan"),
+        #         ],width=4),
+        #     ]
+        # ),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(
+        #             [
+        #             cc.ChartCard("search-fragment-10", "Following fragmentation with 10eV"),
+        #         ],width=4),
+        #         dbc.Col(
+        #             [
+        #             cc.ChartCard("search-fragment-20", "Following fragmentation with 20eV"),
+        #         ],width=4),
+        #         dbc.Col(
+        #             [
+        #             cc.ChartCard("search-fragment-40", "Following fragmentation with 40eV"),
+        #         ],width=4),
+        #     ]
+        # ),
 
         dbc.Row(
             [
                 dbc.Col(
                     [
-                    cc.ChartCard("search-fragment-10-only-fragment", "Following fragmentation with 10eV with fragment only"),
+                    cc.ChartCard("search-fragment-10-only-fragment", "Fragmentation with 10eV with fragment only"),
                 ],width=4),
                 dbc.Col(
                     [
-                    cc.ChartCard("search-fragment-20-only-fragment", "Following fragmentation with 20eV with fragment only"),
+                    cc.ChartCard("search-fragment-20-only-fragment", "Fragmentation with 20eV with fragment only"),
                 ],width=4),
                 dbc.Col(
                     [
-                    cc.ChartCard("search-fragment-40-only-fragment", "Following fragmentation with 40eV with fragment only"),
+                    cc.ChartCard("search-fragment-40-only-fragment", "Fragmentation with 40eV with fragment only"),
                 ],width=4),
             ]
         ),

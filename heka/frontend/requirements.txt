@@ -25,3 +25,4 @@ psycopg2==2.8.5
 scipy==1.5.2
 dash_table==4.4.0
 dash-table-experiments==0.6.0
+scipy==1.5.2

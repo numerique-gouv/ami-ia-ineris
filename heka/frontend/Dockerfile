@@ -15,4 +15,4 @@ RUN if [ -f "requirements.txt" ]; then \
 COPY src/ /heka/frontend
 
 ENTRYPOINT [ "gunicorn" ]
-CMD [ "--workers", "3", "-b", ":80", "--preload", "--chdir", "/heka/frontend", "app:server" ]
+CMD [ "--workers", "3", "-b", ":80", "--timeout", "300", "--preload", "--chdir", "/heka/frontend", "app:server" ]
