@@ -32,7 +32,7 @@ spec:
           claimName: default-local-volume-claim
       containers:
       - name: frontend
-        image: ${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_REF_NAME}
+        image: ${CI_REGISTRY_IMAGE}/${SERVICE}:${CI_COMMIT_REF_SLUG}
         imagePullPolicy: Always
         resources:
           requests:
@@ -43,7 +43,7 @@ spec:
             memory: 2000Mi
         env:
         - name: GUNICORN_TIMEOUT
-          value: "300"
+          value: "600"
         - name: FOR_GODS_SAKE_PLEASE_REDEPLOY
           value: ${CI_BUILD_REF}-${CI_PIPELINE_ID}-${CI_JOB_ID}
         - name: PROJECT_CONFIG
@@ -147,8 +147,8 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "${PROJECT_IS_HTTPS}"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "${NOT_PROJECT_IS_HTTPS}"
     nginx.ingress.kubernetes.io/auth-method: POST
-    nginx.ingress.kubernetes.io/auth-url: ${PROJECT_PROTOCOl}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/api/a12n/access/verify
-    nginx.ingress.kubernetes.io/auth-signin: ${PROJECT_PROTOCOl}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/signin/?redirect=$${skip}scheme://$${skip}http_host$${skip}escaped_request_uri
+    nginx.ingress.kubernetes.io/auth-url: ${PROJECT_PROTOCOL}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/api/a12n/access/verify
+    nginx.ingress.kubernetes.io/auth-signin: ${PROJECT_PROTOCOL}://${PROJECT_INGRESS_HOSTNAME}/${PROJECT_NAME}/signin/?redirect=$${skip}scheme://$${skip}http_host$${skip}escaped_request_uri
     nginx.ingress.kubernetes.io/proxy-body-size: 400m
     nginx.ingress.kubernetes.io/configuration-snippet: |
       proxy_set_header X-Script-Name /${PROJECT_NAME};

@@ -1,5 +1,5 @@
 ###############################################################################
-###################################  ADMIN  ###################################
+####################################  ADMIN  ##################################
 ###############################################################################
 
 .admin:
@@ -7,28 +7,28 @@
     SERVICE: admin
   only:
     changes:
-    - heka/admin/k8s-template.yml
+      - heka/admin/k8s-template.yml
 
 ###################################  DEPLOY  ##################################
 
-deploy:admin:dev:
+deploy:admin:
   needs:
-  - deploy:project:dev
+    - deploy:project
   extends:
-  - .deploy_only
-  - .deploy
-  - .dev
-  - .admin
+    - .deploy_only
+    - .deploy
+    - .admin
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]
 
-deploy:admin:prod:
+##################################  DESTROY  ##################################
+
+destroy:admin:
   needs:
-  - deploy:project:prod
+    - deploy:admin
   extends:
-  - .deploy_only
-  - .deploy
-  - .prod
-  - .admin
+    - .deploy_only
+    - .destroy
+    - .admin
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]

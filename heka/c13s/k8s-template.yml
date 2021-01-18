@@ -28,7 +28,7 @@ spec:
       terminationGracePeriodSeconds: 3600
       containers:
       - name: c13s
-        image: ${CI_REGISTRY_IMAGE}/c13s:${CI_COMMIT_REF_SLUG}
+        image: ${CI_REGISTRY_IMAGE}/${SERVICE}:${CI_COMMIT_REF_SLUG}
         imagePullPolicy: Always
         resources:
           requests:

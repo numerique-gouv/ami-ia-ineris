@@ -1,5 +1,5 @@
 ###############################################################################
-####################################  A12N  ###################################
+#####################################  A12N  ##################################
 ###############################################################################
 
 .a12n:
@@ -7,28 +7,28 @@
     SERVICE: a12n
   only:
     changes:
-    - heka/a12n/k8s-template.yml
+      - heka/a12n/k8s-template.yml
 
 ###################################  DEPLOY  ##################################
 
-deploy:a12n:dev:
+deploy:a12n:
   needs:
-  - deploy:project:dev
+    - deploy:project
   extends:
-  - .deploy_only
-  - .deploy
-  - .dev
-  - .a12n
+    - .deploy_only
+    - .deploy
+    - .a12n
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]
 
-deploy:a12n:prod:
+##################################  DESTROY  ##################################
+
+destroy:a12n:
   needs:
-  - deploy:project:prod
+    - deploy:a12n
   extends:
-  - .deploy_only
-  - .deploy
-  - .prod
-  - .a12n
+    - .deploy_only
+    - .destroy
+    - .a12n
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]

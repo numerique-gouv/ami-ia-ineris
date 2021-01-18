@@ -18,18 +18,31 @@ MODELS_CORR = ['PMF', 'LASSO', 'ODR', 'BCff', 'NOx', 'BCwb', 'CO']
 layout = html.Div(
     [
         html.H1('Chemical mass balance'),
-        html.Div([
-            dcc.DatePickerRange(
-                id='my-date-picker-range',
-                min_date_allowed=dt(2011, 1, 1),
-                display_format='DD-MM-YYYY',
-                # initial_visible_month=dt(2018, 1, 1),
-                # start_date=dt(2018, 1, 1).date(),
-                # end_date=dt(2018, 1, 31).date(),
-                clearable=True,
-                updatemode='bothdates'
-            ),
-            ],style={'width': '50%', 'display': 'inline-block'}),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dcc.DatePickerRange(
+                            id='my-date-picker-range',
+                            min_date_allowed=dt(2011, 1, 1),
+                            display_format='DD-MM-YYYY',
+                            initial_visible_month=dt(2012, 1, 1),
+                            # start_date=dt(2018, 1, 1).date(),
+                            # end_date=dt(2018, 1, 31).date(),
+                            clearable=True,
+                            # updatemode='bothdates'
+                        ),
+                ],width=6),
+                dbc.Col(
+                    [
+                        html.Button(
+                            'Afficher résultats',
+                            id='launch-analysis'
+                        ),
+                        html.Div(id='test', style={'display': 'none'}),
+                ],width=6),
+            ]
+        ),
 
 
         dbc.Row(

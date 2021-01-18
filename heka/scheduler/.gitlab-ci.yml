@@ -1,5 +1,5 @@
 ###############################################################################
-#################################  SCHEDULER  #################################
+##################################  SCHEDULER  ################################
 ###############################################################################
 
 .scheduler:
@@ -7,28 +7,28 @@
     SERVICE: scheduler
   only:
     changes:
-    - heka/scheduler/k8s-template.yml
+      - heka/scheduler/k8s-template.yml
 
 ###################################  DEPLOY  ##################################
 
-deploy:scheduler:dev:
+deploy:scheduler:
   needs:
-  - deploy:project:dev
+    - deploy:project
   extends:
-  - .deploy_only
-  - .deploy
-  - .dev
-  - .scheduler
+    - .deploy_only
+    - .deploy
+    - .scheduler
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]
 
-deploy:scheduler:prod:
+##################################  DESTROY  ##################################
+
+destroy:scheduler:
   needs:
-  - deploy:project:prod
+    - deploy:scheduler
   extends:
-  - .deploy_only
-  - .deploy
-  - .prod
-  - .scheduler
+    - .deploy_only
+    - .destroy
+    - .scheduler
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]

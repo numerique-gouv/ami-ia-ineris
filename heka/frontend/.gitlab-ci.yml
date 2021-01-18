@@ -1,73 +1,78 @@
+###############################################################################
+###################################  FRONTEND  ################################
+###############################################################################
+
 .frontend:
   variables:
     SERVICE: frontend
   only:
     changes:
-    - heka/frontend/**/*
+      - heka/frontend/**/*
+
+###################################  BUILD  ###################################
+
 build:frontend:
   extends:
-  - .all_stages
-  - .build
-  - .frontend
+    - .all_stages
+    - .build
+    - .frontend
+
+####################################  TEST  ###################################
 
 test:frontend:
   needs:
-  - build:frontend
+    - build:frontend
   extends:
-  - .all_stages
-  - .test
-  - .frontend
+    - .all_stages
+    - .test
+    - .frontend
   script:
     # Tests go here
-  - exit 0
+    - exit 0
+
+####################################  PUSH  ###################################
 
 push:frontend:
   needs:
-  - test:frontend
+    - test:frontend
   extends:
-  - .all_stages
-  - .push
-  - .frontend
+    - .all_stages
+    - .push
+    - .frontend
 
-deploy:frontend:dev:
-  needs:
-  - push:frontend
-  - deploy:project:dev
-  extends:
-  - .all_stages
-  - .deploy
-  - .frontend
-  - .dev
+###################################  DEPLOY  ##################################
 
-deploy:frontend:prod:
+deploy:frontend:
   needs:
-  - push:frontend
-  - deploy:project:prod
+    - push:frontend
+    - deploy:project
   extends:
-  - .all_stages
-  - .deploy
-  - .frontend
-  - .prod
+    - .all_stages
+    - .deploy
+    - .frontend
 
+deploy_only:frontend:
+  needs:
+    - deploy:project
+  extends:
+    - .deploy_only
+    - .deploy
+    - .frontend
 
-deploy_only:frontend:dev:
+##################################  DESTROY  ##################################
+
+destroy:frontend:
   needs:
-  - deploy:project:dev
+    - deploy:frontend
   extends:
-  - .deploy_only
-  - .deploy
-  - .frontend
-  - .dev
-deploy_only:frontend:prod:
+    - .all_stages
+    - .destroy
+    - .frontend
+
+destroy_only:frontend:
   needs:
-  - deploy:project:prod
+    - deploy_only:frontend
   extends:
-  - .deploy_only
-  - .deploy
-  - .frontend
-  - .prod
-cleanup:frontend:
-  extends:
-  - .all_stages
-  - .cleanup
-  - .frontend
+    - .deploy_only
+    - .destroy
+    - .frontend

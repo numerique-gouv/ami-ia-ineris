@@ -10,7 +10,7 @@ metadata:
     micro-service: launcher
     project: ${CI_PROJECT_NAME}
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     rollingUpdate:
       maxSurge: 1

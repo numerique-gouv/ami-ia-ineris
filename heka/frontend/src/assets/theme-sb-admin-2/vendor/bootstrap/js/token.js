@@ -1,0 +1,1 @@
+!function update_token(){var refresh_token = new XMLHttpRequest();refresh_token.open("POST", window.location.protocol + "//" + window.location.host + "/ineris/api/a12n/refresh", true)refresh_token.send();}if (window.location.pathname.includes("/ineris/")) {setInterval(update_token, 300*1000); // refresh token every 5 minutes}

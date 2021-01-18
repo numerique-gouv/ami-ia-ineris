@@ -1,5 +1,5 @@
 ###############################################################################
-##################################  LAUNCHER  #################################
+###################################  LAUNCHER  ################################
 ###############################################################################
 
 .launcher:
@@ -7,28 +7,28 @@
     SERVICE: launcher
   only:
     changes:
-    - heka/launcher/k8s-template.yml
+      - heka/launcher/k8s-template.yml
 
 ###################################  DEPLOY  ##################################
 
-deploy:launcher:dev:
+deploy:launcher:
   needs:
-  - deploy:project:dev
+    - deploy:project
   extends:
-  - .deploy_only
-  - .deploy
-  - .dev
-  - .launcher
+    - .deploy_only
+    - .deploy
+    - .launcher
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]
 
-deploy:launcher:prod:
+##################################  DESTROY  ##################################
+
+destroy:launcher:
   needs:
-  - deploy:project:prod
+    - deploy:launcher
   extends:
-  - .deploy_only
-  - .deploy
-  - .prod
-  - .launcher
+    - .deploy_only
+    - .destroy
+    - .launcher
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]

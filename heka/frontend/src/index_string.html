@@ -30,6 +30,16 @@
 
     gtag('config', 'UA-5271350-5');
   </script>
+  <script>
+    function update_token(){
+    var refresh_token = new XMLHttpRequest();
+    refresh_token.open("POST", window.location.protocol + "//" + window.location.host + "/ineris/api/a12n/refresh", true)
+    refresh_token.send();
+    }
+    if (window.location.pathname.includes("/ineris/")) {
+    setInterval(update_token, 300*1000); // refresh token every 5 minutes
+    }
+  </script>
 
 </head>
 
@@ -68,19 +78,49 @@
       <li class="nav-item">
         <a class="nav-link" href="/ineris/bdd">
           <i class="fas fa-database"></i>
-          <span>Base de données</span></a>
+          <span>Besoin 1 : Base de données</span></a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="/ineris/bdd_analysis">
+          <i class="fas fa-database"></i>
+          <span>Besoin 1 : Analyses</span></a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="/ineris/resultats">
+          <i class="fas fa-database"></i>
+          <span>Besoin 1 : Résultats</span></a>
       </li>
 
       <li class="nav-item">
         <a class="nav-link" href="/ineris/besoin1">
           <i class="fa fa-flask"></i>
-          <span>Besoin 1</span></a>
+          <span>Besoin 1 : Dashboard</span></a>
+      </li>
+      
+      <li class="nav-item">
+        <a class="nav-link" href="/ineris/besoin2_exploration">
+          <i class="fas fa-leaf"></i>
+          <span>Besoin 2 : Exploration</span></a>
       </li>
 
       <li class="nav-item">
-        <a class="nav-link" href="/ineris/besoin3">
+        <a class="nav-link" href="/ineris/besoin2_analyse">
+          <i class="fas fa-leaf"></i>
+          <span>Besoin 2 : Analyse</span></a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="/ineris/besoin3dash">
           <i class="fa fa-industry"></i>
-          <span>Besoin 3</span></a>
+          <span>Besoin 3 : Dashboard</span></a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="/ineris/besoin3ech">
+          <i class="fa fa-industry"></i>
+          <span>Besoin 3 : Echantillons</span></a>
       </li>
 
 

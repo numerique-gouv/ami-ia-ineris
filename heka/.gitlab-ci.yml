@@ -2,23 +2,25 @@
 ###################################  PROJECT  #################################
 ###############################################################################
 
-deploy:project:dev:
-  stage: 🚢 Deploy Common
-  needs: []
-  extends:
-  - .deploy
-  - .dev
-  only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+###################################  DEPLOY  ##################################
 
-deploy:project:prod:
+deploy:project:
   stage: 🚢 Deploy Common
+  environment:
+    name: ${CI_COMMIT_BRANCH}
   needs: []
   extends:
   - .deploy
-  - .prod
   only:
-    variables: ["$_ == null"]  # [GCR:Note] This is our hacky way to say "true"
+    variables: ["$_ == null"]
+
+##################################  DESTROY  ##################################
+
+destroy:project:
+  environment:
+    name: ${CI_COMMIT_BRANCH}
+  extends:
+  - .destroy
 
 ##################################  INCLUDES  #################################
 

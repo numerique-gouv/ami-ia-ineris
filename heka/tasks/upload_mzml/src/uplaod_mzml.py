@@ -46,7 +46,7 @@ import json
 cfg = json.loads(os.environ["PROVIDER_CREDENTIALS"])
 PATHSDFFile = "C:\\Users\\alahssini\\Downloads\\Water PCDL_export_080520.sdf"
 
-FILE_PATH_BASE = "/heka/storage/"
+FILE_PATH_BASE = "./"
 BLOB_PATH_BASE = "Data1/Donnees_MzmL/Etude_demonstration/Eau/"
 # FILE_PATH_BASE = "C:\\Users\\alahssini\\Desktop\\mzml\\"
 # FILE_PATH_BASE = "/home/kaggle_sir/mzml/Data1/Donnees_MzmL/Etude_demonstration/Eau/"
@@ -296,10 +296,8 @@ def mzml_flies_carac(mzml_file, id_mzml):
     # just to get n which is the number of spectrums
     for n,spec in enumerate(run):
         continue
-    if mzml_file[:3]=="POS":
-        ionisation = "POS"
-    if mzml_file[:3]=="NEG":
-        ionisation = "NEG"
+    # Naming rule : pos or neg must be included in the last 15 charchaters of mzml file name
+    ionisation= 'POS' if 'pos' in mzml_file[-15:] else 'NEG'
     if "-allion-" in mzml_file:
         mode_acq = "Data independant"
         sampling_site = mzml_file.split('-')[mzml_file.split('-').index('allion')-1]
@@ -308,13 +306,15 @@ def mzml_flies_carac(mzml_file, id_mzml):
         sampling_site = mzml_file.split('-')[mzml_file.split('-').index('MSMS')-1]
     upload_date = datetime.now().strftime('%Y-%m-%d') 
     sampling_date = 'Null'
-    return([id_mzml, mzml_file, ionisation, mode_acq, n, upload_date, sampling_site, sampling_date])
+    return([id_mzml, ionisation+'\\'+mzml_file, ionisation, mode_acq, n, upload_date, sampling_site, sampling_date])
 
 
 def get_mzml_carac_from_db(mzml_file):
     """
     get mzml caracteristics from db
     """
+    ionisation= 'POS' if 'pos' in mzml_file[-15:] else 'NEG'
+    mzml_file=ionisation+'\\'+mzml_file
     sql = f"SELECT * FROM public.mzml_files where mzml_file='{mzml_file}';"
     connection = psycopg2.connect(user = USER, password = PASSWORD, host = HOSTNAME, port = PORT, database = DATABASE)
     df = sqlio.read_sql_query(sql, connection)
@@ -1065,38 +1065,39 @@ if __name__ == "__main__" :
 
 
        
-    # # table mzml_files
-    # for id_mzml,mzml_file in enumerate(MZML_FILES):
-    #     sql = f'SELECT max(id_mzml) FROM public.mzml_files;'
-    #     connection = psycopg2.connect(user = USER, password = PASSWORD, host = HOSTNAME, port = PORT, database = DATABASE)
-    #     df = sqlio.read_sql_query(sql, connection)
-    #     connection.close()
-    #     id_mzml = df.values[0,0]+1
-    #     caracs = mzml_flies_carac(mzml_file, id_mzml)
-    #     print(caracs)
-    #     add_2_mzml_files(caracs)
+    # table mzml_files
+    for id_mzml,mzml_file in enumerate(MZML_FILES):
+        sql = f'SELECT max(id_mzml) FROM public.mzml_files;'
+        connection = psycopg2.connect(user = USER, password = PASSWORD, host = HOSTNAME, port = PORT, database = DATABASE)
+        df = sqlio.read_sql_query(sql, connection)
+        connection.close()
+        id_mzml = df.values[0,0]+1
+        caracs = mzml_flies_carac(mzml_file, id_mzml)
+        print(caracs)
+        add_2_mzml_files(caracs)
 
 
-    # # Table mzml_chromato
-    # for mzml_file in MZML_FILES:
-    #     X,Y = get_chromato(mzml_file)
-    #     id_mzml = get_id_mzml_by_file(mzml_file)
-    #     df_chromato = pd.DataFrame({'id_mzml':[id_mzml for i in range(len(X))], 'time':X, 'tic':Y})
-    #     print(df_chromato)
-    #     # put df in the database
-    #     engine = create_engine(f'postgresql://{USER}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}')
+    # Table mzml_chromato
+    for mzml_file in MZML_FILES:
+        X,Y = get_chromato(mzml_file)
+        ionisation= 'POS' if 'pos' in mzml_file[-15:] else 'NEG'
+        id_mzml = get_id_mzml_by_file(ionisation+'\\'+mzml_file)
+        df_chromato = pd.DataFrame({'id_mzml':[id_mzml for i in range(len(X))], 'time':X, 'tic':Y})
+        print(df_chromato.head(2))
+        # put df in the database
+        engine = create_engine(f'postgresql://{USER}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}')
 
-    #     # Prepare data
-    #     output = StringIO()
-    #     df_chromato.to_csv(output, sep='\t', header=False, index=False)
-    #     output.seek(0)
+        # Prepare data
+        output = StringIO()
+        df_chromato.to_csv(output, sep='\t', header=False, index=False)
+        output.seek(0)
 
-    #     # Insert data
-    #     connection = engine.raw_connection()
-    #     cursor = connection.cursor()
-    #     cursor.copy_from(output, 'mzml_chromato', sep="\t", null='')
-    #     connection.commit()
-    #     cursor.close()
+        # Insert data
+        connection = engine.raw_connection()
+        cursor = connection.cursor()
+        cursor.copy_from(output, 'mzml_chromato', sep="\t", null='')
+        connection.commit()
+        cursor.close()
 
 
     # pos_threshold = 10000
@@ -1261,18 +1262,30 @@ if __name__ == "__main__" :
 
 
     # for i, mzml_file in enumerate(MZML_FILES):
+    #     print(mzml_file)
     #     df_mzml = get_mzml_carac_from_db(mzml_file)
     #     id_mzml = df_mzml['id_mzml'].values[0]
     #     acquisition_mode = df_mzml['acquisition_mode'].values[0]
-
     #     d=get_dataset_for_mzml(id_mzml, id_analysis)
 
-    #     L = ['id_mzml','id_molecule', 'id_analysis', 'retention_time_exp','tic','mass_exp','cosine_similarity_10','cosine_similarity_20','cosine_similarity_40','root_similarity_10','root_similarity_20','root_similarity_40','scholle_similarity_10','scholle_similarity_20','scholle_similarity_40','num_fragmentation_the_peaks_10','num_fragmentation_the_peaks_20','num_fragmentation_the_peaks_40','num_fragmentation_exp_peaks_10','num_fragmentation_exp_peaks_20','num_fragmentation_exp_peaks_40','cosine_similarity_isotopic','root_similarity_isotopic','num_isotopic_the_peaks','num_isotopic_exp_peaks','cosine_similarity_isotopic_mod','retention_time','mass']
+    #     # decomment this when you want to apply another pre-trainded model
+    #     # d=get_dataset_temp(id_mzml)
+    #     # id_analysis=d['id_analysis'].values[0]
+
+    #     L = ['id_mzml', 'mzml_file','id_molecule', 'id_analysis', 'molecule_name', 'cas', 'formula', 'source', 'retention_time_exp','tic','mass_exp','cosine_similarity_10','cosine_similarity_20','cosine_similarity_40','root_similarity_10','root_similarity_20','root_similarity_40','scholle_similarity_10','scholle_similarity_20','scholle_similarity_40','num_fragmentation_the_peaks_10','num_fragmentation_the_peaks_20','num_fragmentation_the_peaks_40','num_fragmentation_exp_peaks_10','num_fragmentation_exp_peaks_20','num_fragmentation_exp_peaks_40','cosine_similarity_isotopic','root_similarity_isotopic','num_isotopic_the_peaks','num_isotopic_exp_peaks','cosine_similarity_isotopic_mod','retention_time','mass', 'flag_peak_number_exp_20', 'flag_peak_number_exp_40']
         
     #     if acquisition_mode=='Data independant':
     #         L1 = ['cosine_similarity_10','root_similarity_10','scholle_similarity_10','num_fragmentation_the_peaks_10','num_fragmentation_exp_peaks_10']
     #         for i in L1:
     #             d[i]=None
+
+    #     d['flag_peak_number_exp_20']=d['num_fragmentation_exp_peaks_20'].apply(lambda x : 'non' if x<=3 else 'oui')
+    #     d['flag_peak_number_exp_40']=d['num_fragmentation_exp_peaks_40'].apply(lambda x : 'non' if x<=3 else 'oui')
+
+    #     molecules = get_df_full_query("SELECT id_molecule, molecule_name, cas, formula, source FROM molecules")
+    #     files = get_df_full_query("SELECT id_mzml, mzml_file FROM mzml_files")
+    #     d = d.merge(molecules,on=['id_molecule'], how='left')
+    #     d = d.merge(files,on=['id_mzml'], how='left')
         
     #     d['id_analysis']=id_analysis
     #     d = d[L]
@@ -1292,18 +1305,20 @@ if __name__ == "__main__" :
     #     connection.commit()
     #     cursor.close()
 
-    #     RFC_non28_3 = joblib.load('RFC_non28_3.pkl')
-    #     RFC_non28_3_ineris = joblib.load('RFC_non28_3_ineris.pkl')
+    #     LR_non28_3 = joblib.load('LR_non28_3.pkl')
+    #     LR_non28_3_ineris = joblib.load('LR_non28_3_ineris.pkl')
 
     #     X1_ret = ['rt_diff_abs', 'cosine_similarity_20', 'scholle_similarity_20', 'cosine_similarity_40','scholle_similarity_40', 'cosine_similarity_isotopic_mod', 'found_peaks_isotopic']
     #     X1 = ['cosine_similarity_20', 'scholle_similarity_20', 'cosine_similarity_40', 'scholle_similarity_40', 'cosine_similarity_isotopic_mod', 'found_peaks_isotopic']
     #     d['rt_diff']=d['retention_time_exp']-d['retention_time']
     #     d['rt_diff_abs'] = d['rt_diff'].apply(lambda x : abs(x))
     #     d['found_peaks_isotopic'] = d['num_isotopic_exp_peaks'].apply(lambda x : 0 if x==1 else 1)
-    #     d = d[['id_mzml', 'id_molecule', 'id_analysis', 'retention_time_exp']+X1_ret]
+    #     d = d[['id_mzml', 'id_molecule', 'id_analysis', 'mzml_file', 'molecule_name', 'cas', 'formula', 'mass', 'source', 'tic', 'retention_time_exp']+X1_ret[:1]+['flag_peak_number_exp_20']+X1_ret[1:3]+['flag_peak_number_exp_40']+X1_ret[3:]]
     #     d[X1] = d[X1].fillna(0)
-    #     d['prob'] = d[X1_ret].apply(lambda x: RFC_non28_3_ineris.predict_proba([x])[0,1] if(np.all(pd.notnull(x[0]))) else RFC_non28_3.predict_proba([x[1:]])[0,1], axis = 1)
-    #     d['class'] = d[X1_ret].apply(lambda x: RFC_non28_3_ineris.predict([x])[0] if(np.all(pd.notnull(x[0]))) else RFC_non28_3.predict([x[1:]])[0], axis = 1)
+    #     d['prob'] = d[X1_ret].apply(lambda x: LR_non28_3_ineris.predict_proba([x])[0,1] if(np.all(pd.notnull(x[0]))) else LR_non28_3.predict_proba([x[1:]])[0,1], axis = 1)
+    #     d['class'] = d[X1_ret].apply(lambda x: LR_non28_3_ineris.predict([x])[0] if(np.all(pd.notnull(x[0]))) else LR_non28_3.predict([x[1:]])[0], axis = 1)
+    #     d['prob_no_rt'] = d[X1_ret].apply(lambda x: LR_non28_3.predict_proba([x[1:]])[0,1], axis = 1)
+    #     d['class_no_rt'] = d[X1_ret].apply(lambda x: LR_non28_3.predict([x[1:]])[0], axis = 1)
     #     print(d)
 
     #     # put df in the database

@@ -1,7 +1,6 @@
 import json
 import pandas as pd
-import geopandas as gpd
-import plotly.graph_objects as go
+import plotly.express as px
 
 
 from datetime import datetime, timedelta, date
@@ -42,8 +41,16 @@ def get_profile_evolution_model(start_date, end_date, profile, model):
         )
         return(fig)
 
-    query=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' AND profile = '{profile}' ORDER BY date"""
+    # query=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' AND profile = '{profile}' ORDER BY date"""
+
+    query=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = '{model}' AND regressor_results.profile = '{profile}'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
@@ -109,12 +116,33 @@ def get_profile_evolution(start_date, end_date, profile):
         )
         return(fig)
 
-    query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'PMF' AND profile = '{profile}' ORDER BY date"""
-    query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'LASSO' AND profile = '{profile}' ORDER BY date"""
-    query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'ODR' AND profile = '{profile}' ORDER BY date"""
+    # query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'PMF' AND profile = '{profile}' ORDER BY date"""
+    query_PMF=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'PMF' AND regressor_results.profile = '{profile}'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'LASSO' AND profile = '{profile}' ORDER BY date"""
+    query_LASSO=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'LASSO' AND regressor_results.profile = '{profile}'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'ODR' AND profile = '{profile}' ORDER BY date"""
+    query_ODR=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'ODR' AND regressor_results.profile = '{profile}'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
 
     df_PMF = get_df_full_query(query_PMF).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
@@ -200,8 +228,16 @@ def get_coloc_data(start_date, end_date, coloc):
     if start_date==None or end_date==None or coloc==None:
         return(pd.Dataframe())
 
-    query=f"""SELECT date, value FROM public.data_receptor_coloc WHERE date < '{end_date}' 
-              AND date >= '{start_date}' and coloc = '{coloc}' ORDER BY 1"""
+    # query=f"""SELECT date, value FROM public.data_receptor_coloc WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' and coloc = '{coloc}' ORDER BY 1"""
+
+    query=f"""SELECT data_receptor_coloc.date, data_receptor_coloc.value 
+            FROM data_receptor_coloc LEFT JOIN blacklist_besoin3
+            ON data_receptor_coloc.date=blacklist_besoin3.date
+            WHERE data_receptor_coloc.date < '{end_date}'
+            AND data_receptor_coloc.date >= '{start_date}' and data_receptor_coloc.coloc = '{coloc}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY 1"""
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "value": "Value"}
@@ -218,12 +254,33 @@ def get_profile_evolution_HOA(start_date, end_date):
         )
         return(fig)
 
-    query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'PMF' AND profile = 'HOA' ORDER BY date"""
-    query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'LASSO' AND profile = 'HOA' ORDER BY date"""
-    query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'ODR' AND profile = 'HOA' ORDER BY date"""
+    # query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'PMF' AND profile = 'HOA' ORDER BY date"""
+    query_PMF=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'PMF' AND regressor_results.profile = 'HOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'LASSO' AND profile = 'HOA' ORDER BY date"""
+    query_LASSO=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'LASSO' AND regressor_results.profile = 'HOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'ODR' AND profile = 'HOA' ORDER BY date"""
+    query_ODR=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'ODR' AND regressor_results.profile = 'HOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
 
     df_PMF = get_df_full_query(query_PMF).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
@@ -338,12 +395,33 @@ def get_profile_evolution_BBOA(start_date, end_date):
         )
         return(fig)
 
-    query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'PMF' AND profile = 'BBOA' ORDER BY date"""
-    query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'LASSO' AND profile = 'BBOA' ORDER BY date"""
-    query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'ODR' AND profile = 'BBOA' ORDER BY date"""
+    # query_PMF=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'PMF' AND profile = 'BBOA' ORDER BY date"""
+    query_PMF=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'PMF' AND regressor_results.profile = 'BBOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_LASSO=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'LASSO' AND profile = 'BBOA' ORDER BY date"""
+    query_LASSO=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'LASSO' AND regressor_results.profile = 'BBOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
+    # query_ODR=f"""SELECT date, contribution, uncertainty FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'ODR' AND profile = 'BBOA' ORDER BY date"""
+    query_ODR=f"""SELECT regressor_results.date, regressor_results.contribution, regressor_results.uncertainty 
+              FROM regressor_results left join blacklist_besoin3
+              on regressor_results.model = blacklist_besoin3.model and regressor_results.date = blacklist_besoin3.date
+              WHERE regressor_results.date < '{end_date}' AND regressor_results.date >= '{start_date}'
+              AND regressor_results.model = 'ODR' AND regressor_results.profile = 'BBOA'
+              AND blacklist_besoin3.date is null
+              ORDER BY date"""
 
     df_PMF = get_df_full_query(query_PMF).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
@@ -459,8 +537,17 @@ def get_error_evolution_model(start_date, end_date, error_type, model, mass):
         )
         return(fig)
 
-    query=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    # query=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+
+    query=f"""SELECT model_error.date, model_error.error, model_error.error_relative 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' AND model_error.model = '{model}' 
+            AND model_error.error_type = '{error_type}' AND mass = {mass}
+            AND blacklist_besoin3.date is null
+            ORDER BY model_error.date"""
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "error": "Error", "error_relative": "Relative error"}
@@ -496,12 +583,36 @@ def get_error_evolution(start_date, end_date, error_type, mass):
         )
         return(fig)
 
-    query_PMF=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'PMF' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
-    query_LASSO=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'LASSO' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
-    query_ODR=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = 'ODR' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    # query_PMF=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'PMF' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    query_PMF=f"""SELECT model_error.date, model_error.error, model_error.error_relative 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' AND model_error.model = 'PMF' 
+            AND model_error.error_type = '{error_type}' AND mass = {mass}
+            AND blacklist_besoin3.date is null
+            ORDER BY model_error.date"""
+    # query_LASSO=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'LASSO' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    query_LASSO=f"""SELECT model_error.date, model_error.error, model_error.error_relative 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' AND model_error.model = 'LASSO' 
+            AND model_error.error_type = '{error_type}' AND mass = {mass}
+            AND blacklist_besoin3.date is null
+            ORDER BY model_error.date"""
+    # query_ODR=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'ODR' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    query_ODR=f"""SELECT model_error.date, model_error.error, model_error.error_relative 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' AND model_error.model = 'ODR' 
+            AND model_error.error_type = '{error_type}' AND mass = {mass}
+            AND blacklist_besoin3.date is null
+            ORDER BY model_error.date"""
 
     df_PMF = get_df_full_query(query_PMF).rename(
         columns={"date": "Date", "error": "Error", "error_relative": "Relative error"}
@@ -567,8 +678,16 @@ def get_error_by_mass_evolution(start_date, end_date, error_type, model, mass):
         )
         return(fig)
 
-    query=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    # query=f"""SELECT date, error, error_relative FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' and error_type = '{error_type}' and mass = {mass} ORDER BY date"""
+    query_ODR=f"""SELECT model_error.date, model_error.error, model_error.error_relative 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' AND model_error.model = '{model}' 
+            AND model_error.error_type = '{error_type}' AND mass = {mass}
+            AND blacklist_besoin3.date is null
+            ORDER BY model_error.date"""
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "error": "Error", "error_relative": "Relative error"}
@@ -655,12 +774,33 @@ def get_signal_reconst_avg_model(start_date, end_date):
         )
         return(fig)
 
-    query_PMF=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' AND model = 'PMF' GROUP BY 1 ORDER BY 1"""
-    query_ODR=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' AND model = 'ODR' GROUP BY 1 ORDER BY 1"""
-    query_LASSO=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' AND model = 'LASSO' GROUP BY 1 ORDER BY 1"""
+    # query_PMF=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'PMF' GROUP BY 1 ORDER BY 1"""
+    query_PMF=f"""SELECT signal_reconst.mass, avg(signal_reconst.value), stddev_samp(signal_reconst.value) 
+            FROM public.signal_reconst LEFT JOIN blacklist_besoin3
+            ON signal_reconst.model=blacklist_besoin3.model AND signal_reconst.date=blacklist_besoin3.date
+            WHERE signal_reconst.date <= '{end_date}' 
+            AND signal_reconst.date >= '{start_date}' AND signal_reconst.model = 'PMF'
+            AND blacklist_besoin3.date is null
+            GROUP BY 1 ORDER BY 1"""
+    # query_ODR=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'ODR' GROUP BY 1 ORDER BY 1"""
+    query_ODR=f"""SELECT signal_reconst.mass, avg(signal_reconst.value), stddev_samp(signal_reconst.value) 
+            FROM public.signal_reconst LEFT JOIN blacklist_besoin3
+            ON signal_reconst.model=blacklist_besoin3.model AND signal_reconst.date=blacklist_besoin3.date
+            WHERE signal_reconst.date <= '{end_date}' 
+            AND signal_reconst.date >= '{start_date}' AND signal_reconst.model = 'ODR'
+            AND blacklist_besoin3.date is null
+            GROUP BY 1 ORDER BY 1"""
+    # query_LASSO=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.signal_reconst WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' AND model = 'LASSO' GROUP BY 1 ORDER BY 1"""
+    query_LASSO=f"""SELECT signal_reconst.mass, avg(signal_reconst.value), stddev_samp(signal_reconst.value) 
+            FROM public.signal_reconst LEFT JOIN blacklist_besoin3
+            ON signal_reconst.model=blacklist_besoin3.model AND signal_reconst.date=blacklist_besoin3.date
+            WHERE signal_reconst.date <= '{end_date}' 
+            AND signal_reconst.date >= '{start_date}' AND signal_reconst.model = 'LASSO'
+            AND blacklist_besoin3.date is null
+            GROUP BY 1 ORDER BY 1"""
 
     df_signal_recons_PMF = get_df_full_query(query_PMF).rename(
         columns={"mass": "Mass", "avg": "Average", "stddev_samp":"Standard deviation"}
@@ -672,8 +812,15 @@ def get_signal_reconst_avg_model(start_date, end_date):
         columns={"mass": "Mass", "avg": "Average", "stddev_samp":"Standard deviation"}
     )
 
-    query=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.data_receptor WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' GROUP BY 1 ORDER BY 1"""
+    # query=f"""SELECT mass, avg(value), stddev_samp(value) FROM public.data_receptor WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' GROUP BY 1 ORDER BY 1"""
+    query=f"""SELECT data_receptor.mass, avg(data_receptor.value), stddev_samp(data_receptor.value) 
+            FROM public.data_receptor LEFT JOIN blacklist_besoin3
+            ON data_receptor.date=blacklist_besoin3.date
+            WHERE data_receptor.date <= '{end_date}' 
+            AND data_receptor.date >= '{start_date}'
+            AND blacklist_besoin3.date is null
+            GROUP BY 1 ORDER BY 1"""
 
     df_signal_receptor = get_df_full_query(query).rename(
         columns={"mass": "Mass", "avg": "Average", "stddev_samp":"Standard deviation"}
@@ -806,8 +953,15 @@ def get_pie_profile_model(start_date, end_date, model):
         )
         return(fig)
 
-    query=f"""SELECT profile, avg(contribution) FROM public.regressor_results WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' GROUP BY 1 ORDER BY profile"""
+    # query=f"""SELECT profile, avg(contribution) FROM public.regressor_results WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' GROUP BY 1 ORDER BY profile"""
+    query=f"""SELECT regressor_results.profile, avg(regressor_results.contribution) 
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date <= '{end_date}' 
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model}' 
+            AND blacklist_besoin3.date is null
+            GROUP BY 1 ORDER BY profile"""
 
     df = get_df_full_query(query).rename(
         columns={"profile": "Profile", "avg": "Contribution"}
@@ -839,8 +993,15 @@ def get_pie_profile_evolution_model(start_date, end_date, model):
         )
         return(fig)
 
-    query=f"""SELECT date, profile, contribution FROM public.regressor_results WHERE date <= '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' ORDER BY date, profile"""
+    # query=f"""SELECT date, profile, contribution FROM public.regressor_results WHERE date <= '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' ORDER BY date, profile"""
+    query=f"""SELECT regressor_results.date, regressor_results.profile, regressor_results.contribution
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date <= '{end_date}' 
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY date, profile"""
 
     df = get_df_full_query(query)
     df['contr_abs'] = df['contribution'].abs()
@@ -869,20 +1030,31 @@ def get_pie_profile_evolution_model(start_date, end_date, model):
 
 
 def get_daily_contribution_profile_model(start_date, end_date, profile, model):
+    fig = go.Figure()
+    fig.update_layout(
+        margin=dict(t=0, b=0, r=40, l=40),
+        height=300
+    )
     if start_date==None or end_date==None or profile==None or model==None:
-        fig = go.Figure()
-        fig.update_layout(
-            margin=dict(t=0, b=0, r=40, l=40),
-            height=300
-        )
         return(fig)
 
-    query=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
-              AND date >= '{start_date}' AND model = '{model}' AND profile = '{profile}' ORDER BY date"""
+    # query=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' AND model = '{model}' AND profile = '{profile}' ORDER BY date"""
+    query=f"""SELECT regressor_results.date, regressor_results.contribution 
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date < '{end_date}' 
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model}' 
+            AND regressor_results.profile = '{profile}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY date"""
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
     )
+    if len(df)==0:
+        return(fig)
+
     df['time'] = df['Date'].dt.strftime('%H')
 
     fig = go.Figure()
@@ -903,20 +1075,32 @@ def get_daily_contribution_profile_model(start_date, end_date, profile, model):
 
 
 def get_daily_contribution_profile_avg_std_model(start_date, end_date, profile, model):
+    fig = go.Figure()
+    fig.update_layout(
+        margin=dict(t=0, b=0, r=40, l=40),
+        height=300
+    )
     if start_date==None or end_date==None or profile==None or model==None:
-        fig = go.Figure()
-        fig.update_layout(
-            margin=dict(t=0, b=0, r=40, l=40),
-            height=300
-        )
         return(fig)
 
     query=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
               AND date >= '{start_date}' AND model = '{model}' AND profile = '{profile}' ORDER BY date"""
+    query=f"""SELECT regressor_results.date, regressor_results.contribution 
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date < '{end_date}' 
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model}' 
+            AND regressor_results.profile = '{profile}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY date"""
+
 
     df = get_df_full_query(query).rename(
         columns={"date": "Date", "contribution": "Contribution", "uncertainty": "Uncertainty"}
     )
+    if len(df)==0:
+        return(fig)
+
     df['time'] = df['Date'].dt.strftime('%H')
     df_group = df.groupby(['time'], as_index=False).agg({'Contribution':['mean', 'std']})
 
@@ -992,9 +1176,17 @@ def get_error_table(start_date, end_date, model, error_type):
     if start_date==None or end_date==None or model==None or error_type==None:
         return([{"Date" : None, "Mass" : None, 'Error' :None}])
 
-    query=f"""SELECT date, mass, error FROM public.model_error WHERE date < '{end_date}' 
-              AND date >= '{start_date}' and model = '{model}' AND mass != 0 and error_type = '{error_type}' 
-              ORDER BY 3 DESC LIMIT 100"""
+    # query=f"""SELECT date, mass, error FROM public.model_error WHERE date < '{end_date}' 
+    #           AND date >= '{start_date}' and model = '{model}' AND mass != 0 and error_type = '{error_type}' 
+    #           ORDER BY 3 DESC LIMIT 100"""
+    query=f"""SELECT model_error.date, model_error.mass, model_error.error 
+            FROM model_error LEFT JOIN blacklist_besoin3
+            ON model_error.model=blacklist_besoin3.model AND model_error.date=blacklist_besoin3.date
+            WHERE model_error.date < '{end_date}' 
+            AND model_error.date >= '{start_date}' and model_error.model = '{model}' 
+            AND model_error.mass != 0 and model_error.error_type = '{error_type}'
+            AND blacklist_besoin3.date is null
+            ORDER BY 3 DESC LIMIT 100"""
 
     df = get_df_full_query(query)
 
@@ -1004,12 +1196,12 @@ def get_error_table(start_date, end_date, model, error_type):
 
 
 def get_correlation(start_date, end_date, profile, model1, model2):
+    fig = go.Figure()
+    fig.update_layout(
+        margin=dict(t=0, b=0, r=40, l=40),
+        height=300
+    )
     if start_date==None or end_date==None or model1==None or model2==None or profile==None:
-        fig = go.Figure()
-        fig.update_layout(
-            margin=dict(t=0, b=0, r=40, l=40),
-            height=300
-        )
         return(fig)
 
 
@@ -1022,32 +1214,59 @@ def get_correlation(start_date, end_date, profile, model1, model2):
 
 
     if model1 in ['PMF', 'ODR', 'LASSO']:
-        query_model1=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
-                         AND date >= '{start_date}' AND model = '{model1}' AND profile = '{profile}' ORDER BY date""" 
+        # query_model1=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
+        #                  AND date >= '{start_date}' AND model = '{model1}' AND profile = '{profile}' ORDER BY date""" 
+        query_model1=f"""SELECT regressor_results.date, regressor_results.contribution 
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date < '{end_date}'
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model1}' 
+            AND regressor_results.profile = '{profile}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY date"""
         df_model1=get_df_full_query(query_model1).rename(columns={"date": "Date", "contribution": "Contribution1"})
 
 
     if model2 in ['PMF', 'ODR', 'LASSO']:
-        query_model2=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
-                         AND date >= '{start_date}' AND model = '{model2}' AND profile = '{profile}' ORDER BY date""" 
+        # query_model2=f"""SELECT date, contribution FROM public.regressor_results WHERE date < '{end_date}' 
+        #                  AND date >= '{start_date}' AND model = '{model2}' AND profile = '{profile}' ORDER BY date"""
+        query_model2=f"""SELECT regressor_results.date, regressor_results.contribution 
+            FROM regressor_results LEFT JOIN blacklist_besoin3
+            ON regressor_results.model=blacklist_besoin3.model AND regressor_results.date=blacklist_besoin3.date
+            WHERE regressor_results.date < '{end_date}'
+            AND regressor_results.date >= '{start_date}' AND regressor_results.model = '{model2}' 
+            AND regressor_results.profile = '{profile}' 
+            AND blacklist_besoin3.date is null
+            ORDER BY date"""
         df_model2=get_df_full_query(query_model2).rename(columns={"date": "Date", "contribution": "Contribution2"})
 
-    merged_inner = pd.merge(left=df_model1, right=df_model2, left_on='Date', right_on='Date')
 
+    merged_inner = pd.merge(left=df_model1, right=df_model2, left_on='Date', right_on='Date')
+    merged_inner = merged_inner.rename(columns={"Contribution1": model1, "Contribution2": model2})
+
+    if len(merged_inner)==0:
+        return(fig)
+
+    fig_px = px.scatter(merged_inner, x=model1, y=model2, trendline="ols")
+    trendline = fig_px.data[1] # second trace, first one is scatter
 
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
-            x=merged_inner["Contribution1"],
-            y=merged_inner["Contribution2"],
-            mode='markers'
+            x=merged_inner[model1],
+            y=merged_inner[model2],
+            mode='markers',
+            marker_color="rgb(250, 150, 250)",
+            name=f"Scatter between {model1} and {model2}"
         )
     )
+    fig.add_trace(trendline)
     fig.update_layout(
         margin=dict(t=0, b=0, r=40, l=40),
         height=300,
         xaxis_title=model1,
-        yaxis_title=model2
+        yaxis_title=model2,
+        showlegend=False
         )
     return(fig)
 

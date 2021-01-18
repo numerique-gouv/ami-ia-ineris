@@ -1,10 +1,10 @@
 stages:
-- 🧰 Build
-- 📝 Test
-- 📦 Push
-- 🚢 Deploy Common
-- 🚢 Deploy Microservices
-- 🧹 Cleanup
+  - 🧰 Build
+  - 📝 Test
+  - 📦 Push
+  - 🚢 Deploy Common
+  - 🚢 Deploy Microservices
+  - 💣 Destroy
 
 ###############################################################################
 ###################################  RULES  ###################################
@@ -13,76 +13,61 @@ stages:
 .all_stages:
   except:
     variables:
-    - $TARGET_SERVICE != null && $TARGET_SERVICE != $SERVICE
-    - $DEPLOY_ONLY != null
+      - $TARGET_SERVICE != null && $TARGET_SERVICE != $SERVICE
+      - $DEPLOY_ONLY != null
 
 .deploy_only:
   except:
     variables:
-    - $TARGET_SERVICE != null && $TARGET_SERVICE != $SERVICE
+      - $TARGET_SERVICE != null && $TARGET_SERVICE != $SERVICE
   only:
     variables:
-    - $DEPLOY_ONLY != null
+      - $DEPLOY_ONLY != null
 
 ###############################################################################
-################################  ENVIRONMENTS  ###############################
+################################  ENVIRONMENT  ################################
 ###############################################################################
 
-####################################  DEV  ####################################
-
-.dev:
-  environment: development-$SERVICE
-  variables:
-    TARGET_PROJECT_CONFIG: ${PROJECT_CONFIG_DEV}
-    TARGET_PROVIDER_CREDENTIALS: ${PROVIDER_CREDENTIALS_DEV}
-    TARGET_K8S_URL: ${K8S_DEV_URL}
-    TARGET_K8S_TOKEN: ${K8S_DEV_TOKEN}
-    TARGET_K8S_CA_PEM: ${K8S_DEV_CA_PEM}
+.env:
+  environment:
+    name: ${CI_COMMIT_BRANCH}/${SERVICE}
   only:
     refs:
-    - dev
-
-####################################  PROD  ###################################
-
-.prod:
-  environment: production-$SERVICE
-  variables:
-    TARGET_PROJECT_CONFIG: ${PROJECT_CONFIG}
-    TARGET_PROVIDER_CREDENTIALS: ${PROVIDER_CREDENTIALS}
-    TARGET_K8S_URL: ${K8S_PROD_URL}
-    TARGET_K8S_TOKEN: ${K8S_PROD_TOKEN}
-    TARGET_K8S_CA_PEM: ${K8S_PROD_CA_PEM}
-  only:
-    refs:
-    - master
+      - /env\/.+/
 
 ###############################################################################
 ###################################  PHASES  ##################################
 ###############################################################################
 
+##############################  REGISTRY CONFIG  ##############################
+
+.registry:config:
+  image: $CI_REGISTRY/heka/tools/buildx:master
+  services:
+    - docker:19-dind
+  before_script:
+    - >
+      echo $CI_REGISTRY_PASSWORD |
+      docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - docker buildx create --driver docker-container --use
+  tags:
+    - ci-build
+
 ###################################  BUILD  ###################################
 
 .build:
   stage: 🧰 Build
-  image: $CI_REGISTRY/heka/tools/buildx:master
-  services:
-  - docker:19-dind
-  before_script:
-  - >
-    echo $CI_REGISTRY_PASSWORD |
-    docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  - docker buildx create --driver docker-container --use
+  extends:
+    - .registry:config
   script:
-  - >
-    docker buildx build
-    --build-arg CI_REGISTRY=$CI_REGISTRY
-    --cache-from=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache
-    --cache-to=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache,mode=max
-    --tag $CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_SHA
-    --push
-    heka/$SERVICE
-  tags:
-  - ci-build
+    - >
+      docker buildx build
+      --build-arg CI_REGISTRY=$CI_REGISTRY
+      --cache-from=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache
+      --cache-to=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache,mode=max
+      --tag $CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_SHA
+      --push
+      heka/$SERVICE
 
 ####################################  TEST  ###################################
 
@@ -94,88 +79,81 @@ stages:
 
 .push:
   stage: 📦 Push
-  image: $CI_REGISTRY/heka/tools/buildx:master
-  services:
-  - docker:19-dind
-  before_script:
-  - >
-    echo $CI_REGISTRY_PASSWORD |
-    docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  - docker buildx create --driver docker-container --use
+  extends:
+    - .registry:config
   script:
-  - >
-    docker buildx build
-    --build-arg CI_REGISTRY=$CI_REGISTRY
-    --cache-from=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache
-    --cache-to=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache,mode=max
-    --tag $CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG
-    --push
-    heka/$SERVICE
-  tags:
-  - ci-build
+    - >
+      docker buildx build
+      --build-arg CI_REGISTRY=$CI_REGISTRY
+      --cache-from=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache
+      --cache-to=type=registry,ref=$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG-cache,mode=max
+      --tag $CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_REF_SLUG
+      --push
+      heka/$SERVICE
+
+#################################  K8S CONFIG  ################################
+
+.k8s:config:
+  image: $CI_REGISTRY/heka/tools/k8s-deploy:master
+  extends:
+    - .env
+  before_script:
+    # Initialize useful variables for the k8s templates
+    - export PROJECT_NAME=$(echo "$PROJECT_CONFIG" | yq -c -r ".project.name")
+    - export PROJECT_PROTOCOL=$(echo "$PROJECT_CONFIG" | yq -rc ".network.protocol // .project.protocol")
+    - export PROJECT_IS_HTTPS=$([[ "$PROJECT_PROTOCOl" == "https" ]] && echo "true" || echo "false")
+    - export NOT_PROJECT_IS_HTTPS=$([[ "$PROJECT_IS_HTTPS" == "true" ]] && echo "false" || echo "false")
+    - export PROJECT_INGRESS_HOSTNAME=$(echo "$PROJECT_CONFIG" | yq -rc ".network.hostname // .project.hostname")
+    - export PREFIX_PATH_WITH_SLASH=$(echo "$PROJECT_CONFIG" | yq -rc ".network.\"prefix-path\" // \"/\(.project.name)\"")
+    - export PREFIX_PATH=$([[ ${PREFIX_PATH_WITH_SLASH} == "/" ]] && echo "" || echo ${PREFIX_PATH_WITH_SLASH})
+      # Create K8s connection environment variables
+    - ENV=${CI_COMMIT_BRANCH#"env/"}
+    - K8S_URL_VARIABLE_NAME=K8S_${ENV^^}_URL
+    - K8S_URL="${!K8S_URL_VARIABLE_NAME}"
+    - export K8S_NAMESPACE=heka-$CI_PROJECT_NAME
+      # Connect to the cluster
+    - kubectl config set-cluster $CI_PROJECT_ID --server="$K8S_URL" --certificate-authority="$K8S_CA_PEM"
+    - kubectl config set-credentials $CI_PROJECT_ID --token=$K8S_TOKEN
+    - kubectl config set-context $CI_PROJECT_ID --cluster=$CI_PROJECT_ID --user=$CI_PROJECT_ID
+    - kubectl config use-context $CI_PROJECT_ID
+      # Initialize environment variables
+      # Base 64 is required for us to pass a yaml to a k8s secret
+      # alpine needs to trail the newline in the end of the file
+    - export PROJECT_CONFIG=$(echo "$PROJECT_CONFIG" | base64 | tr -d \\n)
+    - export SHARED_PROJECT_CONFIG=$(echo "$SHARED_PROJECT_CONFIG" | base64 | tr -d \\n)
+    - export PROVIDER_CREDENTIALS=$(echo "$PROVIDER_CREDENTIALS" | base64 | tr -d \\n)
 
 ###################################  DEPLOY  ##################################
 
 .deploy:
-  image: $CI_REGISTRY/heka/tools/k8s-deploy:master
+  extends:
+    - .k8s:config
   stage: 🚢 Deploy Microservices
   script:
-    # Initialize useful variables for the k8s templates
-  - export PROJECT_NAME=$(echo "$TARGET_PROJECT_CONFIG" | yq -c -r ".project.name")
-  - export PROJECT_PROTOCOl=$(echo "$TARGET_PROJECT_CONFIG" | yq -c -r ".project.protocol")
-  - export PROJECT_IS_HTTPS=$([[ "$PROJECT_PROTOCOl" == "https" ]] && echo "true" || echo "false")
-  - export NOT_PROJECT_IS_HTTPS=$([[ "$PROJECT_IS_HTTPS" == "true" ]] && echo "false" || echo "false")
-  - export PROJECT_INGRESS_HOSTNAME=$(echo "$TARGET_PROJECT_CONFIG" | yq -c -r ".project.hostname")
-    # Create K8s connection environment variables
-  - export K8S_NAMESPACE=heka-$CI_PROJECT_NAME
-  - K8S_URL=$TARGET_K8S_URL
-  - K8S_TOKEN=$TARGET_K8S_TOKEN
-  - K8S_CA_PEM=$TARGET_K8S_CA_PEM
-  - K8S_CA_PEM_FILE=./k8s_ca.pem
-  - cat <<< "$K8S_CA_PEM" > $K8S_CA_PEM_FILE
-    # Connect to the cluster
-  - kubectl config set-cluster $CI_PROJECT_ID --server="$K8S_URL" --certificate-authority="$K8S_CA_PEM_FILE"
-  - kubectl config set-credentials $CI_PROJECT_ID --token=$K8S_TOKEN
-  - kubectl config set-context $CI_PROJECT_ID --cluster=$CI_PROJECT_ID --user=$CI_PROJECT_ID
-  - kubectl config use-context $CI_PROJECT_ID
-    # Initialize environment variables
-    # Base 64 is required for us to pass a yaml to a k8s secret
-    # alpine needs to trail the newline in the end of the file
-  - export PROJECT_CONFIG=$(echo "$TARGET_PROJECT_CONFIG" | base64 | tr -d \\n)
-  - export SHARED_PROJECT_CONFIG=$(echo "$SHARED_PROJECT_CONFIG" | base64 | tr -d \\n)
-  - export PROVIDER_CREDENTIALS=$(echo "$TARGET_PROVIDER_CREDENTIALS" | base64 | tr -d \\n)
-  - >
-    kubectl create secret docker-registry sia-docker-registry-credentials
-    --docker-server=$CI_REGISTRY
-    --docker-username=$REGISTRY_USER
-    --docker-password=$REGISTRY_PASSWORD
-    --docker-email=$GITLAB_USER_EMAIL
-    --namespace "$K8S_NAMESPACE"
-    --dry-run
-    -o yaml | kubectl apply -f -
-    # Apply the template
-  - envsubst < ./heka/$SERVICE/k8s-template.yml | kubectl apply -f -
+    - >
+      kubectl create secret docker-registry sia-docker-registry-credentials
+      --docker-server=$CI_REGISTRY
+      --docker-username=$REGISTRY_USER
+      --docker-password=$REGISTRY_PASSWORD
+      --docker-email=$GITLAB_USER_EMAIL
+      --namespace "$K8S_NAMESPACE"
+      --dry-run
+      -o yaml | kubectl apply -f -
+    - envsubst < ./heka/$SERVICE/k8s-template.yml | kubectl apply -f -
 
-##################################  CLEANUP  #################################
+##################################  DESTROY  ##################################
 
-.cleanup:
-  stage: 🧹 Cleanup
-  image: $CI_REGISTRY/heka/tools/clean-registry:1
+.destroy:
+  extends:
+    - .k8s:config
+  stage: 💣 Destroy
+  when: manual
   script:
-  - >
-    cleanup
-    --host $CI_REGISTRY
-    --username $CI_REGISTRY_USER
-    --password $CI_REGISTRY_PASSWORD
-    --repo $CI_PROJECT_PATH/$SERVICE
-    --delete
-    --tags-like "[0-9a-z]{40}"
-    --keep-tags "master" "dev"
-    --keep-by-hours 24
+    - envsubst < ./heka/$SERVICE/k8s-template.yml | kubectl delete -f -
 
 ###############################################################################
 ##################################  INCLUDES  #################################
 ###############################################################################
 
 include:
-- local: /heka/.gitlab-ci.yml
+  - local: /heka/.gitlab-ci.yml

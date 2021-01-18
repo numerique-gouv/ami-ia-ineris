@@ -3,7 +3,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 import custom_components as cc
-from Besoin1.helpers import *
+from Bdd.helpers import *
 import dash_table
 
 
@@ -13,14 +13,13 @@ layout = html.Div(
     [
 
 
-    dcc.Tabs([
 
-    dcc.Tab(label='Echantillons', children=[
 
+        html.H1('Base de données'),
         html.Div([
                 dash_table.DataTable(
                     id='table-echantillon',
-                    columns=[{'name': 'test', 'id': 'test'}],
+                    columns=[{'name': 'Charging ...', 'id': 'Charging ...'}],
                     filter_action="native",
                     sort_action="native",
                     sort_mode="multi",
@@ -63,6 +62,7 @@ layout = html.Div(
                             ),
                         ]),
 
+                        html.Div(id='output-data-upload'),
                 ],width=6),
                 dbc.Col(
                     [
@@ -93,11 +93,9 @@ layout = html.Div(
                                 dbc.Col([
                                     html.Label('Base de données'),
                                     dcc.Dropdown(
-                                        options=[
-                                            {'label': 'INERIS', 'value': 'INERIS'},
-                                            {'label': 'Agilent', 'value': 'Agilent'},
-                                        ],
-                                        value=['INERIS', 'Agilent'],
+                                        id='molecule-bdd',
+                                        options=[],
+                                        # value=['INERIS', 'Agilent'],
                                         multi=True
                                     )  
                                 ],width=4),
@@ -105,7 +103,10 @@ layout = html.Div(
 
                             html.Div(id='selected-row-ids-echantillon'),
                             html.Div(id='selected-row-ids-echantillon-test'),
-
+                            dcc.ConfirmDialog(
+                                id='confirm',
+                                message='Danger danger! Are you sure you want to continue?',
+                            ),
                         ]),
 
                 ],width=6)
@@ -113,53 +114,7 @@ layout = html.Div(
         ),
 
         
-        html.Div(id='output-data-upload'),
-        html.Div(id='intermediate-value-echantillon', style={'display': 'none'})
+        html.Div(id='intermediate-value-echantillon', style={'display': 'none'}),
+        html.Div(id='non-displayed')
 
-        ]),
-
-
-        dcc.Tab(label='Analyses', children=[
-
-        html.Div(id='non-displayed'),
-        html.Div([
-                dash_table.DataTable(
-                    id='table-analysis',
-                    columns=[{'name': 'test', 'id': 'test'}],
-                    filter_action="native",
-                    sort_action="native",
-                    sort_mode="multi",
-                    selected_rows=[],
-                    page_action="native",
-                    page_size= 10
-                ),
-            ]),
-
-        html.Div(id='selected-row-ids-analysis'),
-
-
-        html.Br(),
-
-        html.Div(id='buttons-analysis', children=[
-            html.Button(
-                'Afficher paramètres',
-                id='show-analysis',
-                style={
-                    'width': '50%',
-                    'height': '60px',
-                    'lineHeight': '60px',
-                    'borderWidth': '1px',
-                    'borderRadius': '5px',
-                    'textAlign': 'center',
-                    'margin': '10px'
-                },
-            ),
-
-        ]),
-
-        html.Div(id='intermediate-value-analysis', style={'display': 'none'})
-
-        ]),
-
-        ])
         ])

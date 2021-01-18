@@ -56,7 +56,7 @@ def get_files():
             prop(elem, 'getcontenttype', ''),
         )
 
-    L = [elem2file(elem).name.split('/')[-1] for elem in tree.findall('{DAV:}response')][1:]
+    L = [elem2file(elem).name.split('/')[-1] for elem in tree.findall('{DAV:}response')[2:]]
     return(L)
 
 def get_files_from_OC(start_date, end_date):
@@ -71,9 +71,9 @@ def get_files_from_OC(start_date, end_date):
         print(file)
         df = pd.read_csv(f'https://sharebox.lsce.ipsl.fr/index.php/s/ic4cehvKfKJTQVk/download?path=%2F&files={file}') 
         df.fillna(df.acsm_utc_time[0], inplace=True)
-        df['acsm_utc_time'] =  pd.to_datetime(df['acsm_utc_time'], format='%d/%m/%Y %H:%M:%S').dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['acsm_utc_time'] =  pd.to_datetime(df['acsm_utc_time'], format='%m/%d/%Y %H:%M:%S').dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df[df.amus.isin(MASSES)].reset_index(drop=True)
-        df['id_site']=1
+        df['id_site']=2
         df_for_database = df[['acsm_utc_time', 'id_site', 'amus', 'Org_Specs', 'OrgSpecs_err']].rename(columns={'acsm_utc_time':'date', 'amus':'mass', 'Org_Specs':'value', 'OrgSpecs_err':'uncertainty'})
 
         try:
@@ -319,9 +319,9 @@ def compute_store_errors(df, id_site, id_analysis):
                 print(f'Errors for {model} in {date} with error type {error_type} already in table')
 
 if __name__ == '__main__':
-    dfs, dfs_receptor_data = get_files_from_OC((datetime.datetime.now()-datetime.timedelta(days=1)).strftime('%Y%m%d%H%M'), (datetime.datetime.now()+datetime.timedelta(days=1)).strftime('%Y%m%d%H%M'))
+    dfs, dfs_receptor_data = get_files_from_OC((datetime.datetime.now()-datetime.timedelta(hours=3)).strftime('%Y%m%d%H%M'), (datetime.datetime.now()+datetime.timedelta(days=1)).strftime('%Y%m%d%H%M'))
     for i in range(len(dfs)):
         df = dfs[i]
         df_receptor_data = dfs_receptor_data[i]
-        compute_store_regressor(1, 1, profiles=['BBOA', 'HOA', 'LO-OOA', 'MO-OOA'])
-        compute_store_errors(df, 1, 1)
+        compute_store_regressor(2, 3, profiles=['BBOA', 'HOA', 'LO-OOA', 'MO-OOA'])
+        compute_store_errors(df, 2, 3)
