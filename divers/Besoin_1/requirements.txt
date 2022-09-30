@@ -16,6 +16,6 @@ google-api-python-client==1.10.0
 google-cloud==0.34.0
 google-cloud-vision==1.0.0
 google-cloud-storage==1.30.0
-joblib==0.14.1
+joblib==1.2.0
 matplotlib==3.3.3
 seaborn==0.11.1
