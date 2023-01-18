@@ -1,9 +1,8 @@
 # known useful libraries
 import os
-import re
 import pandas as pd
 import numpy as np
-import time
+from datetime import datetime, timedelta
 import datetime
 import yaml
 # handling postgres database
@@ -13,7 +12,6 @@ from sqlalchemy import create_engine
 from io import StringIO
 # regressors
 from sklearn.linear_model import Lasso
-from sklearn import metrics
 import scipy.odr
 #webdav
 import requests
@@ -44,7 +42,7 @@ def get_files():
 
     def prop(elem, name, default=None):
         child = elem.find('.//{DAV:}' + name)
-        return default if child is None else child.text
+        return default if (child is None or child.text is None) else child.text
 
 
     def elem2file(elem):
@@ -57,6 +55,7 @@ def get_files():
         )
 
     L = [elem2file(elem).name.split('/')[-1] for elem in tree.findall('{DAV:}response')[2:]]
+    L.remove('')
     return(L)
 
 def get_files_from_OC(start_date, end_date):
@@ -69,12 +68,20 @@ def get_files_from_OC(start_date, end_date):
     dfs_receptor_data = []
     for file in files:
         print(file)
-        df = pd.read_csv(f'https://sharebox.lsce.ipsl.fr/index.php/s/ic4cehvKfKJTQVk/download?path=%2F&files={file}') 
-        df.fillna(df.acsm_utc_time[0], inplace=True)
-        df['acsm_utc_time'] =  pd.to_datetime(df['acsm_utc_time'], format='%m/%d/%Y %H:%M:%S').dt.strftime('%Y-%m-%d %H:%M:%S')
+        for sep in [',', ';', '\t']:
+            df = pd.read_csv(f'https://sharebox.lsce.ipsl.fr/index.php/s/ic4cehvKfKJTQVk/download?path=%2F&files={file}', sep=sep)
+            if len(df.columns) > 1:
+                break
+        
+        data_column_name = df.columns[0]
+        df.fillna(df[data_column_name].iloc[0], inplace=True)
+        try:
+            df[data_column_name] =  pd.to_datetime(df[data_column_name], format='%d/%m/%Y %H:%M:%S').dt.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            print("No date normalization")
         df = df[df.amus.isin(MASSES)].reset_index(drop=True)
-        df['id_site']=2
-        df_for_database = df[['acsm_utc_time', 'id_site', 'amus', 'Org_Specs', 'OrgSpecs_err']].rename(columns={'acsm_utc_time':'date', 'amus':'mass', 'Org_Specs':'value', 'OrgSpecs_err':'uncertainty'})
+        df['id_site']=1
+        df_for_database = df[[data_column_name, 'id_site', 'amus', 'Org_Specs', 'OrgSpecs_err']].rename(columns={data_column_name:'date', 'amus':'mass', 'Org_Specs':'value', 'OrgSpecs_err':'uncertainty'})
 
         try:
             # put df in the database
@@ -146,6 +153,49 @@ def run_lasso(df, profiles):
     # return(y_train)
 
 
+def run_lasso_lissage(df, profiles, nb_lissage):
+    # get sample from db
+    if "acsm_utc_time" in df.columns:
+        data_column_name = "acsm_utc_time"
+    else:
+        data_column_name = "ACSM_time"
+    date = df[data_column_name].iloc[0]
+    print(date)
+    connection = psycopg2.connect(user = USER, password = PASSWORD, host = HOSTNAME, port = PORT, database = DATABASE)
+    query_date = f"SELECT DISTINCT date FROM public.data_receptor where date <= '{date}' and date >= date '{date}' - interval '2 hour' ORDER BY date DESC LIMIT 3"
+    df_date = sqlio.read_sql_query(query_date, connection)
+
+    if len(df_date) < 3:
+        print(f'Datetime : {date} not possible - lack of samples')
+        connection.close()
+        return None
+    else:
+        value, uncertainty = get_profiles(profiles)
+        value = value.rename(columns={"mass" : "amus"})
+
+        ## Collect the receptor data
+        sql = f"""SELECT * FROM public.data_receptor where date = '{date}' """
+        for k in range(1, nb_lissage):
+            date_intemediaire = df_date.iloc[k, 0]
+            sql += f"or date = '{date_intemediaire}'"
+        sql += "order by mass;"
+        df_receptor_data = sqlio.read_sql_query(sql, connection)
+        df_receptor_data = df_receptor_data[df_receptor_data.columns]
+
+        cor = value.merge(df_receptor_data, left_on='amus', right_on='mass').drop(columns=['mass', 'amus'])
+
+        # Choose variables
+        X_train = cor[profiles].values
+        y_train = cor['value'].values.reshape(-1,1)
+
+        # Training Lasso Model
+        alpha = 0.0001
+        lasso = Lasso(fit_intercept=False, alpha=alpha)
+        lasso.fit(X_train, y_train)
+                             
+        connection.close()
+        return(lasso.coef_ , [None for i in lasso.coef_])
+
 def run_odr(df, profiles, lasso=[]):
     """
     Take one date and a list of profiles and return contribution of each of the profiles of the sample of selected date using Lasso 
@@ -188,20 +238,33 @@ def compute_store_regressor(id_site, id_analysis, profiles=['BBOA', 'HOA', 'LO-O
     """
     lasso = run_lasso(df, profiles)
     odr = run_odr(df, profiles, lasso=lasso[0])
+    lasso_lissage = run_lasso_lissage(df, profiles, 3)
     for indx, profile in enumerate(profiles):
         print(profile)
-        row_lasso = [df.acsm_utc_time.values[0], id_site, id_analysis, 'LASSO', profile, lasso[0][indx], 'Null']
-        row_odr = [df.acsm_utc_time.values[0], id_site, id_analysis, 'ODR', profile, odr[0][indx], odr[1][indx]]
+        
+        if "acsm_utc_time" in df.columns:
+            data_column_name = "acsm_utc_time"
+        else:
+            data_column_name = "ACSM_time"
+
+        row_lasso = [df[data_column_name].iloc[0], id_site, id_analysis, 'LASSO', profile, lasso[0][indx], 'Null']
+        row_odr = [df[data_column_name].iloc[0], id_site, id_analysis, 'ODR', profile, odr[0][indx], odr[1][indx]]
         try:
             print(row_lasso)
             add_2_regressor_results(row_lasso)
         except:
-            print(f'Lasso results for datetime :{df.acsm_utc_time.values[0]} already in table')
+            print(f'Lasso results for datetime :{df[data_column_name].iloc[0]} already in table')
         try:
             print(row_odr)
             add_2_regressor_results(row_odr)
         except:
-            print(f'ODR results for datetime :{df.acsm_utc_time.values[0]} already in table')
+            print(f'ODR results for datetime :{df[data_column_name].iloc[0]} already in table')          
+        try:
+            row_lasso_lissage = [df[data_column_name].iloc[0], id_site, id_analysis, 'LASSO_x3', profile, lasso_lissage[0][indx], 'Null']
+            print(row_lasso_lissage)
+            add_2_regressor_results(row_lasso_lissage)
+        except:
+            print(f'Lasso X3 results for datetime :{df[data_column_name].iloc[0]} already in table')  
 
 
 
@@ -225,11 +288,34 @@ def compute_signal_reconst(date, model, id_site, id_analysis):
 
 
 def get_error(date, model, id_site, id_analysis, error_type, df_signal_recons=[]):
-    sql = f"SELECT * FROM public.data_receptor where date = '{date}' order by mass;"
     connection = psycopg2.connect(user = USER, password = PASSWORD, host = HOSTNAME, port = PORT, database = DATABASE)
-    df_receptor_data = sqlio.read_sql_query(sql, connection)    
+    if model == 'LASSO_x3':
+        query_date = f"SELECT DISTINCT date FROM public.data_receptor where date <= '{date}' and date >= date '{date}' - interval '2 hour' ORDER BY date DESC LIMIT 3"
+        df_date = sqlio.read_sql_query(query_date, connection)
+        if len(df_date) == 3:
+            sql = f"""WITH aux AS(
+                SELECT *
+                FROM public.data_receptor
+                WHERE date IN (
+                    SELECT DISTINCT date
+                    FROM public.data_receptor
+                    WHERE date = '{date}' OR (date + interval '2 hour'>= '{date}'  AND date <= '{date}')
+                    ORDER BY date DESC
+                    LIMIT 3)
+                )
+            SELECT max(date) as date, id_site, mass, AVG(value) AS value, AVG(uncertainty) AS uncertainty
+            FROM aux
+            GROUP BY id_site, mass
+            ORDER BY mass;"""
+            df_receptor_data = sqlio.read_sql_query(sql, connection)
+        else:
+            df_receptor_data = pd.DataFrame([])    
+    else:
+        sql = f"SELECT * FROM public.data_receptor where date = '{date}' order by mass;"
+        df_receptor_data = sqlio.read_sql_query(sql, connection)    
     connection.close()
 
+    
     if len(df_receptor_data)==0:
         return([])
 
@@ -268,8 +354,13 @@ def compute_store_errors(df, id_site, id_analysis):
     """
     compute lasso and odr result for one year and store them in a table
     """
-    date = df.acsm_utc_time.values[0]
-    for model in ['LASSO', 'ODR']:
+    if "acsm_utc_time" in df.columns:
+        data_column_name = "acsm_utc_time"
+    else:
+        data_column_name = "ACSM_time"
+    date = df[data_column_name].iloc[0]
+    for model in ['LASSO', 'ODR', 'LASSO_x3']:
+        ## SIGNA RECONSTITUTION
         print(model)
         df_signal_recons = compute_signal_reconst(date, model, id_site, id_analysis)
         if len(df_signal_recons)==0:
@@ -323,5 +414,7 @@ if __name__ == '__main__':
     for i in range(len(dfs)):
         df = dfs[i]
         df_receptor_data = dfs_receptor_data[i]
-        compute_store_regressor(2, 3, profiles=['BBOA', 'HOA', 'LO-OOA', 'MO-OOA'])
-        compute_store_errors(df, 2, 3)
+        compute_store_regressor(1, 3, profiles=['BBOA', 'HOA', 'LO-OOA', 'MO-OOA'])
+        compute_store_errors(df, 1, 3)
+
+    print("Update done !")
