@@ -7,7 +7,7 @@ dash_html_components==1.0.2
 dash_core_components==1.8.1
 geopy==1.22.0
 pandas==1.0.3
-PyYAML==5.3.1
+PyYAML==5.4
 Flask-CSV==1.2.0
 Flask==1.1.1
 Flask-Caching==1.8.0
