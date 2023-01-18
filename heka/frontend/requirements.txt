@@ -1,5 +1,5 @@
 geopandas==0.7.0
-numpy==1.18.1
+numpy==1.22.0
 plotly==4.5.4
 dash==1.9.1
 dash_bootstrap_components==0.7.1
